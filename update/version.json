@@ -1,8 +1,8 @@
 {
-  "version": "2.2.3",
+  "version": "2.2.4",
   "required": false,
   "downloadUrl": "https://github.com/Joon088/PerfectPolice/releases/latest/download/PerfectPolice.exe",
   "notes": [
-    "자동업데이트 테스트"
+    "아이콘변경"
   ]
 }
