@@ -7,9 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>PerfectPolice</AssemblyName>
     <RootNamespace>FiveMPoliceCalculator</RootNamespace>
-    <Version>2.2.2</Version>
-    <AssemblyVersion>2.2.2.0</AssemblyVersion>
-    <FileVersion>2.2.2.0</FileVersion>
+    <Version>2.2.3</Version>
+    <AssemblyVersion>2.2.3.0</AssemblyVersion>
+    <FileVersion>2.2.3.0</FileVersion>
   </PropertyGroup>
   <ItemGroup>
     <None Update="Data\offenses.json"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></None>
