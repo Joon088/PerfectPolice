@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,7 +23,26 @@ public partial class MainWindow : Window
  readonly DispatcherTimer undoTimer=new(){Interval=TimeSpan.FromSeconds(3)};
  readonly DispatcherTimer flightTimer=new(){Interval=TimeSpan.FromSeconds(1)};
  public MainWindow(){InitializeComponent();settings=SettingsService.Load();LoadData();foreach(var m in MacroService.Load())macros.Add(m);BindData();ApplySettings();syncing=false;Recalculate(null,null);RefreshMacroUi();Loaded+=OnLoaded;Closing+=(_,_)=>SaveSettings();undoTimer.Tick+=(_,_)=>{UndoButton.Visibility=Visibility.Collapsed;undoTimer.Stop();};flightTimer.Tick+=FlightTimer_Tick;flightTimer.Start();}
- void LoadData(){var p=Path.Combine(AppContext.BaseDirectory,"Data","offenses.json");all=JsonSerializer.Deserialize<List<Offense>>(File.ReadAllText(p),new JsonSerializerOptions{PropertyNameCaseInsensitive=true})??[];}
+ void LoadData()
+ {
+     var assembly = Assembly.GetExecutingAssembly();
+
+     const string resourceName =
+         "FiveMPoliceCalculator.Data.offenses.json";
+
+     using Stream? stream = assembly.GetManifestResourceStream(resourceName);
+
+     if (stream is null)
+         throw new InvalidOperationException(
+             $"내장 법률 데이터를 찾지 못했습니다: {resourceName}");
+
+     all = JsonSerializer.Deserialize<List<Offense>>(
+         stream,
+         new JsonSerializerOptions
+         {
+             PropertyNameCaseInsensitive = true
+         }) ?? [];
+ }
  void BindData(){SelectedList.ItemsSource=selected;CategoryList.ItemsSource=new[]{"즐겨찾기"}.Concat(all.Select(x=>x.Category).Distinct()).ToList();CategoryList.SelectedIndex=0;FlightPermitList.ItemsSource=permits;MiniFlightPermitList.ItemsSource=permits;MacroGrid.ItemsSource=macros;}
  async void OnLoaded(object s, RoutedEventArgs e)
  {
