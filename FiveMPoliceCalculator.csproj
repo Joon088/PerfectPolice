@@ -10,9 +10,9 @@
     <AssemblyName>PerfectPolice</AssemblyName>
     <RootNamespace>FiveMPoliceCalculator</RootNamespace>
 
-    <Version>2.2.5</Version>
-    <AssemblyVersion>2.2.5.0</AssemblyVersion>
-    <FileVersion>2.2.5.0</FileVersion>
+    <Version>2.2.7</Version>
+    <AssemblyVersion>2.2.7.0</AssemblyVersion>
+    <FileVersion>2.2.7.0</FileVersion>
 
     <ApplicationIcon>Assets\PerfectPolice.ico</ApplicationIcon>
   </PropertyGroup>
