@@ -1,11 +1,8 @@
 {
   "version": "2.2.3",
   "required": false,
-  "download_url": "https://github.com/Joon088/PerfectPolice/releases/latest/download/PerfectPolice.exe",
+  "downloadUrl": "https://github.com/Joon088/PerfectPolice/releases/latest/download/PerfectPolice.exe",
   "notes": [
-    "GitHub 자동업데이트 실제 적용",
-    "업데이트 다운로드 후 실행파일 자동 교체",
-    "프로그램 재실행 자동 처리",
-    "미니창 상단 고정 및 빌드 수정 포함"
+    "자동업데이트 테스트"
   ]
 }
