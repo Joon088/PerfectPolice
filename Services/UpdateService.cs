@@ -24,7 +24,7 @@ public static class UpdateService
         {
             string versionUrl = LoadVersionUrl();
             using var request = new HttpRequestMessage(HttpMethod.Get, versionUrl);
-            request.Headers.UserAgent.ParseAdd("PerfectPolice-Updater/2.2.2");
+            request.Headers.UserAgent.ParseAdd("PerfectPolice-Updater/2.2.5");
 
             using HttpResponseMessage response = await Client.SendAsync(request);
             response.EnsureSuccessStatusCode();
@@ -65,9 +65,13 @@ public static class UpdateService
 
             await DownloadAndInstallAsync(owner, info.DownloadUrl);
         }
-        catch
+        catch (Exception ex)
         {
-            // 인터넷 연결 또는 GitHub 장애가 있어도 프로그램 사용을 방해하지 않는다.
+            MessageBox.Show(
+                ex.ToString(),
+                "업데이트 오류",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
@@ -88,7 +92,7 @@ public static class UpdateService
         string updaterBat = Path.Combine(tempDirectory, "apply_update.cmd");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
-        request.Headers.UserAgent.ParseAdd("PerfectPolice-Updater/2.2.2");
+        request.Headers.UserAgent.ParseAdd("PerfectPolice-Updater/2.2.5");
 
         using HttpResponseMessage response = await Client.SendAsync(
             request,
@@ -137,31 +141,43 @@ public static class UpdateService
 
         return $$"""
 @echo off
-setlocal
+setlocal EnableExtensions
 
 :wait_for_app
 powershell -NoProfile -Command "if (Get-Process -Id {{processId}} -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"
-
 if not errorlevel 1 (
     timeout /t 1 /nobreak >nul
     goto wait_for_app
 )
 
-copy /y {{Q(downloadedExe)}} {{Q(currentExe)}} >nul
+timeout /t 2 /nobreak >nul
 
+set /a COPY_RETRY=0
+:copy_retry
+copy /y {{Q(downloadedExe)}} {{Q(currentExe)}} >nul 2>nul
 if errorlevel 1 (
-    start "" {{Q(downloadedExe)}}
-    exit /b 1
+    set /a COPY_RETRY+=1
+    if %COPY_RETRY% GEQ 10 (
+        start "" {{Q(downloadedExe)}}
+        exit /b 1
+    )
+    timeout /t 1 /nobreak >nul
+    goto copy_retry
 )
+
+timeout /t 2 /nobreak >nul
 
 start "" {{Q(currentExe)}}
 
-del /q {{Q(downloadedExe)}} >nul 2>nul
-del /q {{Q(updaterBat)}} >nul 2>nul
+timeout /t 2 /nobreak >nul
+del /f /q {{Q(downloadedExe)}} >nul 2>nul
 
 endlocal
+start "" /b cmd /c "timeout /t 2 /nobreak >nul & del /f /q {{Q(updaterBat)}} >nul 2>nul"
+exit /b 0
 """;
     }
+
     private static string LoadVersionUrl()
     {
         try
