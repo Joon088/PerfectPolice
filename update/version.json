@@ -1,8 +1,8 @@
 {
-  "version": "2.2.8",
+  "version": "2.2.9",
   "required": false,
   "downloadUrl": "https://github.com/Joon088/PerfectPolice/releases/latest/download/PerfectPolice.exe",
   "notes": [
-    "아이콘변경"
+    "가시성 변경 및 미니창클릭 토글기능추가"
   ]
 }
