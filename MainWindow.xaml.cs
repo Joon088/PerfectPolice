@@ -15,6 +15,8 @@ namespace FiveMPoliceCalculator;
 public partial class MainWindow : Window
 {
  const int HotKeyId=9001;
+ const int ClickThroughHotKeyId=9002;
+ const uint VkPageDown=0x22;
  readonly ObservableCollection<Offense> selected=[];
  readonly ObservableCollection<FlightPermit> permits=[];
  readonly ObservableCollection<MacroItem> macros=[];
@@ -48,12 +50,33 @@ public partial class MainWindow : Window
  {
      var h = new WindowInteropHelper(this).Handle;
      NativeMethods.RegisterHotKey(h, HotKeyId, 0, NativeMethods.VK_PRIOR);
+     NativeMethods.RegisterHotKey(h, ClickThroughHotKeyId, 0, VkPageDown);
      HwndSource.FromHwnd(h)?.AddHook(WndProc);
+     UpdateMiniClickStateText();
 
      // 창이 열린 뒤 GitHub의 최신 버전을 조용히 확인한다.
      await UpdateService.CheckForUpdatesAsync(this);
  }
- IntPtr WndProc(IntPtr h,int msg,IntPtr wp,IntPtr lp,ref bool handled){if(msg==NativeMethods.WM_HOTKEY&&wp.ToInt32()==HotKeyId){ToggleMini();handled=true;}return IntPtr.Zero;}
+ IntPtr WndProc(IntPtr h,int msg,IntPtr wp,IntPtr lp,ref bool handled)
+ {
+     if(msg != NativeMethods.WM_HOTKEY)
+         return IntPtr.Zero;
+
+     int id = wp.ToInt32();
+
+     if(id == HotKeyId)
+     {
+         ToggleMini();
+         handled = true;
+     }
+     else if(id == ClickThroughHotKeyId)
+     {
+         ToggleClickThrough();
+         handled = true;
+     }
+
+     return IntPtr.Zero;
+ }
  void ApplySettings()
  {
      Left = settings.FullLeft;
@@ -61,8 +84,7 @@ public partial class MainWindow : Window
      Width = settings.Width;
      Height = settings.Height;
      OpacitySlider.Value = settings.MiniOpacity;
-     FullClickThroughCheck.IsChecked = settings.MiniClickThrough;
-     SettingsClickThroughCheck.IsChecked = settings.MiniClickThrough;
+     UpdateMiniClickStateText();
      MainTabs.SelectedIndex = Math.Clamp(settings.SelectedMainTab, 0, 4);
      miniTab = Math.Clamp(settings.SelectedMiniTab, 0, 2);
      SetMiniTab(miniTab);
@@ -83,7 +105,6 @@ public partial class MainWindow : Window
      }
 
      settings.MiniOpacity = OpacitySlider.Value;
-     settings.MiniClickThrough = FullClickThroughCheck.IsChecked == true;
      settings.SelectedMainTab = MainTabs.SelectedIndex;
      settings.SelectedMiniTab = miniTab;
      SettingsService.Save(settings);
@@ -217,12 +238,40 @@ public partial class MainWindow : Window
  void SortPermits(){var sorted=permits.OrderBy(x=>x.EndTime).ToList();for(int i=0;i<sorted.Count;i++){var old=permits.IndexOf(sorted[i]);if(old!=i)permits.Move(old,i);}}
  void RefreshMacroUi()
  {
-     var boundary=macros.Where(x=>x.Category=="주요 구역 경계령").ToList();
-     var person=macros.Where(x=>x.Category=="개인 대상 출석/수배").ToList();
-     var warrant=macros.Where(x=>x.Category=="영장 RP 절차").ToList();
-     BoundaryMacroButtons.ItemsSource=boundary; PersonMacroButtons.ItemsSource=person; WarrantMacroButtons.ItemsSource=warrant;
-     MiniBoundaryButtons.ItemsSource=boundary; MiniPersonButtons.ItemsSource=person; MiniWarrantButtons.ItemsSource=warrant;
+     var groups = macros
+         .Where(m => !string.IsNullOrWhiteSpace(m.Category))
+         .GroupBy(m => m.Category.Trim(), StringComparer.OrdinalIgnoreCase)
+         .Select(g => new MacroCategoryGroup
+         {
+             Name = g.Key,
+             Items = g.ToList()
+         })
+         .OrderBy(g => GetMacroCategoryOrder(g.Name))
+         .ThenBy(g => g.Name, StringComparer.CurrentCultureIgnoreCase)
+         .ToList();
+
+     MacroCategoryGroups.ItemsSource = groups;
+     MiniMacroCategoryGroups.ItemsSource = groups;
  }
+
+ static int GetMacroCategoryOrder(string category)
+ {
+     return category switch
+     {
+         "주요 구역 경계령" => 0,
+         "개인 대상 출석/수배" => 1,
+         "개인 대상 출석 / 수배" => 1,
+         "영장 RP 절차" => 2,
+         _ => 100
+     };
+ }
+
+ sealed class MacroCategoryGroup
+ {
+     public string Name { get; set; } = string.Empty;
+     public List<MacroItem> Items { get; set; } = [];
+ }
+
  string ExpandMacro(MacroItem m,bool miniMode){string uid=(miniMode?MiniMacroUniqueBox.Text:MacroUniqueBox.Text).Trim();string nick=(miniMode?MiniMacroNicknameBox.Text:MacroNicknameBox.Text).Trim();string prop=(miniMode?MiniMacroPropertyBox.Text:MacroPropertyBox.Text).Trim();return m.Template.Replace("{고번}",uid).Replace("{닉네임}",nick).Replace("{사유지명}",prop).Replace("{5분후}",DateTime.Now.AddMinutes(5).ToString("HH:mm")).Replace("{20분후}",DateTime.Now.AddMinutes(20).ToString("HH:mm"));}
  void CopyMacro_Click(object s,RoutedEventArgs e){if(s is Button b&&b.Tag is MacroItem m){Clipboard.SetText(ExpandMacro(m,false));Toast($"{m.Name} 복사 완료");}} void CopyMiniMacro_Click(object s,RoutedEventArgs e){if(s is Button b&&b.Tag is MacroItem m){Clipboard.SetText(ExpandMacro(m,true));Toast($"{m.Name} 복사 완료");}}
  void AddMacroRow_Click(object s,RoutedEventArgs e){var m=new MacroItem{Category="새 카테고리",Name="새 매크로",Template="복사할 문장"};macros.Add(m);MacroGrid.SelectedItem=m;MacroGrid.ScrollIntoView(m);}
@@ -264,6 +313,7 @@ public partial class MainWindow : Window
      }
 
      ApplyClickThrough();
+     UpdateMiniClickStateText();
  }
 
  double GetMiniHeight(int tabIndex) => tabIndex switch
@@ -297,7 +347,31 @@ public partial class MainWindow : Window
      if (!syncing)
          SaveSettings();
  }
- void ClickThroughChanged(object s,RoutedEventArgs e){if(syncing)return;bool v=(s as CheckBox)?.IsChecked==true;syncing=true;FullClickThroughCheck.IsChecked=SettingsClickThroughCheck.IsChecked=v;syncing=false;settings.MiniClickThrough=v;ApplyClickThrough();SaveSettings();}
+ void ToggleClickThrough()
+ {
+     // 전체창에서는 상태만 바꾸고, 실제 클릭 통과는 미니창에서만 적용된다.
+     settings.MiniClickThrough = !settings.MiniClickThrough;
+     ApplyClickThrough();
+     UpdateMiniClickStateText();
+     SaveSettings();
+ }
+
+ void UpdateMiniClickStateText()
+ {
+     if(MiniClickStateText is null)
+         return;
+
+     if(settings.MiniClickThrough)
+     {
+         MiniClickStateText.Text = "🔒 클릭 통과  ·  Page Down";
+         MiniClickStateText.Foreground = new SolidColorBrush(Color.FromRgb(255, 209, 102));
+     }
+     else
+     {
+         MiniClickStateText.Text = "🖱 클릭 가능  ·  Page Down";
+         MiniClickStateText.Foreground = new SolidColorBrush(Color.FromRgb(175, 192, 218));
+     }
+ }
  void OpacityChanged(object s,RoutedPropertyChangedEventArgs<double> e){if(mini)Opacity=e.NewValue;if(!syncing)SaveSettings();}
  void ApplyClickThrough(){var h=new WindowInteropHelper(this).Handle;if(h==IntPtr.Zero)return;long ex=NativeMethods.GetWindowLongPtr(h,NativeMethods.GWL_EXSTYLE).ToInt64();if(mini&&settings.MiniClickThrough)ex|=NativeMethods.WS_EX_TRANSPARENT|NativeMethods.WS_EX_LAYERED;else ex&=~NativeMethods.WS_EX_TRANSPARENT;NativeMethods.SetWindowLongPtr(h,NativeMethods.GWL_EXSTYLE,new IntPtr(ex));NativeMethods.SetWindowPos(h,IntPtr.Zero,0,0,0,0,NativeMethods.SWP_NOMOVE|NativeMethods.SWP_NOSIZE|NativeMethods.SWP_NOZORDER|NativeMethods.SWP_NOACTIVATE|NativeMethods.SWP_FRAMECHANGED);}
  void MainTabs_SelectionChanged(object s,SelectionChangedEventArgs e){if(!syncing)SaveSettings();}
@@ -353,5 +427,5 @@ public partial class MainWindow : Window
  }
 
  void Header_MouseLeftButtonDown(object s,MouseButtonEventArgs e){if(e.LeftButton==MouseButtonState.Pressed)DragMove();} void Minimize_Click(object s,RoutedEventArgs e)=>WindowState=WindowState.Minimized; void Close_Click(object s,RoutedEventArgs e)=>Close();
- protected override void OnClosed(EventArgs e){NativeMethods.UnregisterHotKey(new WindowInteropHelper(this).Handle,HotKeyId);SaveSettings();base.OnClosed(e);}
+ protected override void OnClosed(EventArgs e){var h=new WindowInteropHelper(this).Handle;NativeMethods.UnregisterHotKey(h,HotKeyId);NativeMethods.UnregisterHotKey(h,ClickThroughHotKeyId);SaveSettings();base.OnClosed(e);}
 }
