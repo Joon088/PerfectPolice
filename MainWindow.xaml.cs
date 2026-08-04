@@ -24,7 +24,7 @@ public partial class MainWindow : Window
  List<Offense>? undoItems; int undoPeople=1;
  readonly DispatcherTimer undoTimer=new(){Interval=TimeSpan.FromSeconds(3)};
  readonly DispatcherTimer flightTimer=new(){Interval=TimeSpan.FromSeconds(1)};
- public MainWindow(){InitializeComponent();settings=SettingsService.Load();LoadData();foreach(var m in MacroService.Load())macros.Add(m);BindData();ApplySettings();syncing=false;Recalculate(null,null);RefreshMacroUi();Loaded+=OnLoaded;Closing+=(_,_)=>SaveSettings();undoTimer.Tick+=(_,_)=>{UndoButton.Visibility=Visibility.Collapsed;undoTimer.Stop();};flightTimer.Tick+=FlightTimer_Tick;flightTimer.Start();}
+ public MainWindow(){InitializeComponent();settings=SettingsService.Load();LoadData();foreach(var m in MacroService.Load())macros.Add(m);BindData();ApplySettings();syncing=false;Recalculate(null,null);RecalculateArticle17();RefreshMacroUi();Loaded+=OnLoaded;Closing+=(_,_)=>SaveSettings();undoTimer.Tick+=(_,_)=>{UndoButton.Visibility=Visibility.Collapsed;undoTimer.Stop();};flightTimer.Tick+=FlightTimer_Tick;flightTimer.Start();}
  void LoadData()
  {
      var assembly = Assembly.GetExecutingAssembly();
@@ -45,7 +45,17 @@ public partial class MainWindow : Window
              PropertyNameCaseInsensitive = true
          }) ?? [];
  }
- void BindData(){SelectedList.ItemsSource=selected;CategoryList.ItemsSource=new[]{"즐겨찾기"}.Concat(all.Select(x=>x.Category).Distinct()).ToList();CategoryList.SelectedIndex=0;FlightPermitList.ItemsSource=permits;MiniFlightPermitList.ItemsSource=permits;MacroGrid.ItemsSource=macros;}
+ void BindData()
+ {
+     SelectedList.ItemsSource=selected;
+     var categories=all.Select(x=>x.Category).Distinct().Where(x=>x!="강제처분").ToList();
+     categories.Add("강제처분");
+     CategoryList.ItemsSource=new[]{"즐겨찾기"}.Concat(categories).ToList();
+     CategoryList.SelectedIndex=0;
+     FlightPermitList.ItemsSource=permits;
+     MiniFlightPermitList.ItemsSource=permits;
+     MacroGrid.ItemsSource=macros;
+ }
  async void OnLoaded(object s, RoutedEventArgs e)
  {
      var h = new WindowInteropHelper(this).Handle;
@@ -112,15 +122,46 @@ public partial class MainWindow : Window
  }
  IEnumerable<Offense> Filter(){var q=SearchBox.Text.Trim();var c=CategoryList.SelectedItem?.ToString();return all.Where(o=>(string.IsNullOrWhiteSpace(q)||o.Name.Contains(q,StringComparison.OrdinalIgnoreCase)||o.Category.Contains(q,StringComparison.OrdinalIgnoreCase))&&(c is null||(c=="즐겨찾기"?settings.Favorites.Contains(o.Id):o.Category==c)));}
  void RefreshOffenses()=>OffenseList.ItemsSource=Filter().ToList();
- void CategoryList_SelectionChanged(object s,SelectionChangedEventArgs e)=>RefreshOffenses(); void SearchBox_TextChanged(object s,TextChangedEventArgs e)=>RefreshOffenses();
+ void CategoryList_SelectionChanged(object s,SelectionChangedEventArgs e)
+ {
+     bool article17 = CategoryList.SelectedItem?.ToString() == "강제처분";
+     if(NormalResultPanel is not null) NormalResultPanel.Visibility = article17 ? Visibility.Collapsed : Visibility.Visible;
+     if(Article17Panel is not null) Article17Panel.Visibility = article17 ? Visibility.Visible : Visibility.Collapsed;
+     RefreshOffenses();
+     if(article17) RecalculateArticle17();
+ }
+ void SearchBox_TextChanged(object s,TextChangedEventArgs e)=>RefreshOffenses();
  void OffenseList_PreviewMouseLeftButtonDown(object s,MouseButtonEventArgs e){DependencyObject? d=e.OriginalSource as DependencyObject;while(d is not null&&d is not ListBoxItem)d=VisualTreeHelper.GetParent(d);if(d is ListBoxItem i&&i.DataContext is Offense o){OffenseList.SelectedItem=o;ToggleOffense(o);e.Handled=true;}}
  void ToggleOffense(Offense o){if(o.AdminOnly){MessageBox.Show(string.IsNullOrWhiteSpace(o.Note)?o.Name:$"{o.Name}\n\n{o.Note}","법률 안내");return;}var found=selected.FirstOrDefault(x=>x.Id==o.Id);if(found is not null)selected.Remove(found);else{if(o.PerPersonRp)MessageBox.Show($"{o.Name}은(는) 인당 벌금 + 인당 구금 항목입니다.\n현재 {GetPeople()}명 기준으로 계산됩니다.","인당 RP 안내",MessageBoxButton.OK,MessageBoxImage.Warning);selected.Add(o);}Recalculate(null,null);}
  void Favorite_Click(object s,RoutedEventArgs e){if(OffenseList.SelectedItem is not Offense o)return;if(!settings.Favorites.Remove(o.Id))settings.Favorites.Add(o.Id);SaveSettings();RefreshOffenses();}
  void RemoveSelected_Click(object s,RoutedEventArgs e){if(SelectedList.SelectedItem is Offense o)selected.Remove(o);Recalculate(null,null);}
  int GetPeople(){return int.TryParse(PeopleBox.Text,out var n)?Math.Max(1,n):1;}
- void SetPeople(int n){n=Math.Max(1,n);syncing=true;PeopleBox.Text=MiniPeopleBox.Text=RpPeopleBox.Text=n.ToString();syncing=false;Recalculate(null,null);}
+ void SetPeople(int n)
+ {
+     n=Math.Max(1,n);
+     syncing=true;
+     PeopleBox.Text=MiniPeopleBox.Text=RpPeopleBox.Text=Article17PeopleBox.Text=n.ToString();
+     syncing=false;
+     Recalculate(null,null);
+     RecalculateArticle17();
+ }
  void PeopleMinus_Click(object s,RoutedEventArgs e)=>SetPeople(GetPeople()-1); void PeoplePlus_Click(object s,RoutedEventArgs e)=>SetPeople(GetPeople()+1);
  void PeopleBox_TextChanged(object s,TextChangedEventArgs e){if(syncing)return;if(int.TryParse(PeopleBox.Text,out var n))SetPeople(n);} void MiniPeopleBox_TextChanged(object s,TextChangedEventArgs e){if(syncing)return;if(int.TryParse(MiniPeopleBox.Text,out var n))SetPeople(n);} void RpPeopleBox_TextChanged(object s,TextChangedEventArgs e){if(syncing)return;if(int.TryParse(RpPeopleBox.Text,out var n))SetPeople(n);}
+ void Article17PeopleBox_TextChanged(object s,TextChangedEventArgs e){if(syncing)return;if(int.TryParse(Article17PeopleBox.Text,out var n))SetPeople(n);}
+ void Article17UnpaidBox_TextChanged(object s,TextChangedEventArgs e){if(syncing)return;RecalculateArticle17();}
+ void RecalculateArticle17()
+ {
+     if(Article17UnpaidBox is null || Article17TargetText is null) return;
+     int people=GetPeople();
+     string digits=new string((Article17UnpaidBox.Text??string.Empty).Where(char.IsDigit).ToArray());
+     long unpaidPerPerson=long.TryParse(digits,out var value)?Math.Max(0,value):0;
+     long totalUnpaid=unpaidPerPerson*people;
+     long jailValue=180_000_000L*people;
+     long target=Math.Max(0,totalUnpaid-jailValue);
+     Article17TotalUnpaidText.Text=$"{totalUnpaid:N0}원";
+     Article17JailValueText.Text=$"{jailValue:N0}원";
+     Article17TargetText.Text=$"{target:N0}원";
+ }
  void Recalculate(object? s,RoutedEventArgs? e)
  {
      if(syncing || FineText is null || RpFineText is null) return;
