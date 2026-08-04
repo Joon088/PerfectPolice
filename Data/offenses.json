@@ -50,9 +50,9 @@
     "fine": 2000000,
     "jailMinutes": 0,
     "isRp": true,
-    "perPersonRp": false,
+    "perPersonRp": true,
     "adminOnly": false,
-    "note": ""
+    "note": "인당 벌금"
   },
   {
     "id": "rp_wanted",
@@ -867,5 +867,16 @@
     "perPersonRp": false,
     "adminOnly": true,
     "note": "운영 원칙에 따라 관리자 처벌 가능"
+  },
+  {
+    "id": "17-force-disposition",
+    "category": "강제처분",
+    "name": "강제처분 계산",
+    "fine": 0,
+    "jailMinutes": 0,
+    "isRp": false,
+    "perPersonRp": true,
+    "adminOnly": true,
+    "note": "벌금 미납 시 최대 구금 180분에 해당하는 금액을 제외한 나머지를 강제처분 대상으로 계산합니다."
   }
 ]
