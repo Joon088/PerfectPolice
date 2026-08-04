@@ -1,8 +1,8 @@
 {
-  "version": "2.2.9",
+  "version": "2.3.0",
   "required": false,
   "downloadUrl": "https://github.com/Joon088/PerfectPolice/releases/latest/download/PerfectPolice.exe",
   "notes": [
-    "가시성 변경 및 미니창클릭 토글기능추가"
+    "17조항 추가 및 미니창 빠른RP창에서 수배RP삭제 빈집털이RP로 수정"
   ]
 }
