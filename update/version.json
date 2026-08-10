@@ -1,8 +1,8 @@
 {
-  "version": "2.3.0",
+  "version": "2.3.1",
   "required": true,
   "downloadUrl": "https://github.com/Joon088/PerfectPolice/releases/latest/download/PerfectPolice.exe",
   "notes": [
-    "17조항 추가 및 미니창 빠른RP창에서 수배RP삭제 빈집털이RP로 수정"
+    "비밀번호 수정, 17조항 금액 수정"
   ]
 }
