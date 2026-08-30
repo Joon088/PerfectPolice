@@ -1,8 +1,12 @@
 {
-  "version": "2.3.3",
+  "version": "2.3.4",
   "required": true,
   "downloadUrl": "https://github.com/Joon088/PerfectPolice/releases/latest/download/PerfectPolice.exe",
   "notes": [
-    "도로교통법만 3배 적용 수정"
+    "도로교통법 항목에만 도주 벌금 3배 적용",
+    "은행 RP를 경찰 / 보안국 전용으로 구분",
+    "미니창 RP 빠른 선택 기능 삭제 및 즐겨찾기 기능으로 변경",
+    "미니창 즐겨찾기 항목을 카테고리별로 선택할 수 있도록 개선",
+    "설정에서 게임 화면 앞 고정 기능을 켜고 끌 수 있도록 추가"
   ]
 }
